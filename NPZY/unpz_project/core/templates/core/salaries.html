@@ -1,0 +1,180 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Расчетная ведомость зарплат — УНПЗ{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-2">
+    
+    <div class="card p-4 bg-white shadow-sm border-0 mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h2 class="fw-bold mb-1">📊 Автоматизированный расчёт ФОТ и KPI</h2>
+                <p class="text-muted mb-0">Укажите отработанные дни (база — 22 дня) и настройте процент KPI от оборота завода.</p>
+            </div>
+            <span class="badge bg-dark fs-6 p-2">Модуль: Бухгалтерия</span>
+        </div>
+        <hr>
+
+        {% if error %}
+            <div class="alert alert-danger shadow-sm" role="alert">
+                <strong>⚠️ Ошибка:</strong> {{ error }}
+            </div>
+        {% endif %}
+
+        <form method="POST">
+            {% csrf_token %}
+
+            <div class="table-responsive mt-3">
+                <table class="table table-hover table-bordered align-middle">
+                    <thead class="table-dark text-center">
+                        <tr>
+                            <th class="py-3">Сотрудник / Должность</th>
+                            <th class="py-3" style="width: 150px;">Оклад ($)</th>
+                            <th class="py-3" style="width: 120px;">Дни (из 22)</th>
+                            <th class="py-3" style="width: 260px;">База для KPI</th>
+                            <th class="py-3" style="width: 130px;">Значение (% / $)</th>
+                            <th class="py-3">Рассчитанный KPI</th>
+                            <th class="py-3">Итого к выплате</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in salary_table %}
+                        <tr data-emp-id="{{ row.employee.id }}">
+                            <td>
+                                <strong class="text-secondary d-block">{{ row.employee.fio }}</strong>
+                                <span class="badge bg-light text-dark border mt-1">{{ row.employee.get_role_display }}</span>
+                            </td>
+
+                            <td>
+                                <input type="number" step="0.01" name="base_{= row.employee.id =}"
+                                       class="form-control form-control-sm fw-bold input-base"
+                                       value="{{ row.base|floatformat:2 }}">
+                            </td>
+
+                            <td>
+                                <select name="days_{{ row.employee.id }}" class="form-select form-select-sm fw-bold input-days">
+                                    {% for day in "xxxxxxxxxxxxxxxxxxxxxxx" %}
+                                        <option value="{{ forloop.counter0 }}" {% if row.days == forloop.counter0 %}selected{% endif %}>
+                                            {{ forloop.counter0 }} дн.
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+
+                            <td>
+                                <select name="kpi_type_{{ row.employee.id }}" class="form-select form-select-sm input-kpi-type">
+                                    <option value="fixed" {% if row.kpi_type == 'fixed' %}selected{% endif %}>Фиксированная премия ($)</option>
+                                    <option value="purchases" {% if row.kpi_type == 'purchases' %}selected{% endif %}>% от Закупок нефти</option>
+                                    <option value="production" {% if row.kpi_type == 'production' %}selected{% endif %}>% от Себестоимости производства</option>
+                                    <option value="sales" {% if row.kpi_type == 'sales' %}selected{% endif %}>% от Продаж (Выручка)</option>
+                                </select>
+                            </td>
+
+                            <td>
+                                <input type="number" step="0.01" name="kpi_val_{{ row.employee.id }}"
+                                       class="form-control form-control-sm text-center fw-bold input-kpi-val"
+                                       value="{{ row.kpi_val|floatformat:2 }}">
+                            </td>
+
+                            <td class="text-center">
+                                <span class="fw-bold text-primary calculated-kpi-text">$0.00</span>
+                            </td>
+
+                            <td class="text-end pe-3">
+                                <span class="fs-5 fw-bold text-dark row-total-text">$0.00</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="row g-2 my-3 text-center small text-muted">
+                <div class="col-md-4">💼 База закупок: <strong>${{ total_purchases|floatformat:2 }}</strong></div>
+                <div class="col-md-4">⚙️ База производства: <strong>${{ total_production|floatformat:2 }}</strong></div>
+                <div class="col-md-4">💰 База продаж: <strong>${{ total_sales|floatformat:2 }}</strong></div>
+            </div>
+
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mt-4 p-3 bg-light rounded border">
+                <div>
+                    <span class="text-muted small fw-bold d-block">ИТОГО К С ПИСАНИЮ С БАЛАНСА:</span>
+                    <h3 class="mb-0 text-success fw-bold" id="grandTotalText">$0.00 USD</h3>
+                </div>
+                <div>
+                    <input type="hidden" name="confirm_payout" value="1">
+                    <button type="submit" class="btn btn-primary btn-lg px-5 fw-bold shadow-sm">
+                        🚀 Утвердить ФОТ и Закрыть месяц
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // Передаем финансовые данные из Django в JS переменные
+    const totalPurchases = parseFloat("{{ total_purchases|default:0 }}");
+    const totalProduction = parseFloat("{{ total_production|default:0 }}");
+    const totalSales = parseFloat("{{ total_sales|default:0 }}");
+
+    const rows = document.querySelectorAll("tbody tr");
+    const grandTotalText = document.getElementById("grandTotalText");
+
+    function calculateTotal() {
+        let currentGrandTotal = 0;
+
+        rows.forEach(row => {
+            const baseInput = row.querySelector(".input-base");
+            const daysSelect = row.querySelector(".input-days");
+            const kpiTypeSelect = row.querySelector(".input-kpi-type");
+            const kpiValInput = row.querySelector(".input-kpi-val");
+
+            const kpiText = row.querySelector(".calculated-kpi-text");
+            const rowTotalText = row.querySelector(".row-total-text");
+
+            // Получаем значения
+            const base = parseFloat(baseInput.value) || 0;
+            const days = parseInt(daysSelect.value) || 0;
+            const kpiType = kpiTypeSelect.value;
+            const kpiVal = parseFloat(kpiValInput.value) || 0;
+
+            // 1. Считаем оклад с учетом отработанных дней (база 22 дня)
+            const calculatedBase = base * (days / 22);
+
+            // 2. Считаем KPI в зависимости от выбранной базы
+            let calculatedKpi = 0;
+            if (kpiType === 'fixed') {
+                calculatedKpi = kpiVal;
+            } else if (kpiType === 'purchases') {
+                calculatedKpi = totalPurchases * (kpiVal / 100);
+            } else if (kpiType === 'production') {
+                calculatedKpi = totalProduction * (kpiVal / 100);
+            } else if (kpiType === 'sales') {
+                calculatedKpi = totalSales * (kpiVal / 100);
+            }
+
+            // Итог строки
+            const rowTotal = calculatedBase + calculatedKpi;
+            currentGrandTotal += rowTotal;
+
+            // Обновляем визуальный интерфейс строки
+            kpiText.innerText = "$" + calculatedKpi.toFixed(2);
+            rowTotalText.innerText = "$" + rowTotal.toFixed(2);
+        });
+
+        // Обновляем общий итог ведомости
+        grandTotalText.innerText = "$" + currentGrandTotal.toFixed(2) + " USD";
+    }
+
+    // Навешиваем слушатели событий на все интерактивные элементы
+    document.querySelectorAll(".input-base, .input-days, .input-kpi-type, .input-kpi-val").forEach(element => {
+        element.addEventListener("change", calculateTotal);
+        element.addEventListener("input", calculateTotal);
+    });
+
+    // Запускаем стартовый расчет таблицы при загрузке страницы
+    calculateTotal();
+});
+</script>
+{% endblock %}

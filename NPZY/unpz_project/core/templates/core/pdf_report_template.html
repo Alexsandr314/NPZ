@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Финансовый отчет НПЗ</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 20mm 12mm;
+            @bottom-right {
+                content: "Страница " counter(page) " из " counter(pages);
+                font-size: 8pt;
+                color: #718096;
+            }
+        }
+        *, *::before, *::after { box-sizing: border-box; }
+
+        /* ИСПРАВЛЕНИЕ ШРИФТА: Явное указание локальных шрифтов Windows для WeasyPrint */
+        body {
+            font-family: "Arial", "Calibri", "Segoe UI", sans-serif;
+            color: #2d3748;
+            font-size: 10pt;
+            line-height: 1.4;
+        }
+        .header-box {
+            border-bottom: 2px solid #2b6cb0;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .title {
+            font-size: 18pt;
+            font-weight: bold;
+            color: #1a365d;
+            text-transform: uppercase;
+        }
+        .meta-table {
+            width: 100%;
+            margin-top: 10px;
+            font-size: 9pt;
+            color: #4a5568;
+        }
+        .stats-grid {
+            width: 100%;
+            margin-bottom: 25px;
+            border-collapse: separate;
+            border-spacing: 10px 0; /* Делает аккуратные отступы между карточками */
+        }
+        .stat-card {
+            background-color: #f7fafc;
+            border: 1px solid #e2e8f0;
+            padding: 12px;
+            text-align: center;
+            width: 33.33%;
+        }
+        .stat-val {
+            font-size: 14pt;
+            font-weight: bold;
+            color: #2b6cb0;
+            margin-top: 4px;
+        }
+        h2 {
+            font-size: 12pt;
+            color: #1a365d;
+            border-left: 4px solid #2b6cb0;
+            padding-left: 8px;
+            margin-top: 25px;
+            margin-bottom: 12px;
+            page-break-after: avoid;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        .data-table th {
+            background-color: #2b6cb0;
+            color: white;
+            text-align: left;
+            padding: 8px 10px;
+            font-size: 9pt;
+            font-weight: bold;
+        }
+        .data-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 9pt;
+        }
+        .data-table tr:nth-child(even) { background-color: #fafbfc; }
+        .text-right { text-align: right; }
+    </style>
+</head>
+<body>
+
+    <div class="header-box">
+        <div class="title">Отчет по закупкам и продажам</div>
+        <table class="meta-table">
+            <tr>
+                <td><strong>Предприятие:</strong> УНПЗ Управление заводом</td>
+                <td class="text-right"><strong>Дата выгрузки:</strong> {{ current_time|date:"d.m.Y H:i" }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <table class="stats-grid">
+        <tr>
+            <td class="stat-card">
+                <div style="font-size: 8pt; color: #718096; font-weight: bold;">БАЛАНС ЗАВОДА</div>
+                <div class="stat-val">${{ finance.balance|floatformat:2 }}</div>
+            </td>
+            <td class="stat-card">
+                <div style="font-size: 8pt; color: #718096; font-weight: bold;">ОБЩИЙ ДОХОД</div>
+                <div class="stat-val" style="color: #2f855a;">${{ finance.income|floatformat:2 }}</div>
+            </td>
+            <td class="stat-card">
+                <div style="font-size: 8pt; color: #718096; font-weight: bold;">ОБЩИЙ РАСХОД</div>
+                <div class="stat-val" style="color: #c53030;">${{ finance.expenses|floatformat:2 }}</div>
+            </td>
+        </tr>
+    </table>
+
+    <h2>🛒 История закупок сырья</h2>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Дата</th>
+                <th>Сырье</th>
+                <th>Поставщик</th>
+                <th>Объем</th>
+                <th class="text-right">Сумма закупки</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in purchases %}
+            <tr>
+                <td>{{ p.date|date:"d.m.Y H:i" }}</td>
+                <td>{{ p.oil.name }}</td>
+                <td>{{ p.supplier }}</td>
+                <td>{{ p.volume|floatformat:2 }} т.</td>
+                <td class="text-right">${{ p.total_price|floatformat:2 }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" style="text-align: center; color: #a0aec0; padding: 15px;">Закупки сырья отсутствуют в базе данных.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>💸 История реализации готовой продукции</h2>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Дата</th>
+                <th>Продукт</th>
+                <th>Тип сделки</th>
+                <th>Количество</th>
+                <th class="text-right">Выручка</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in sales %}
+            <tr>
+                <td>{{ s.date|date:"d.m.Y H:i" }}</td>
+                <td><strong>{{ s.product.name }}</strong></td>
+                <td>
+                    {% if s.sale_type == 'wholesale' %}
+                        Опт / Тендер
+                    {% else %}
+                        Розница
+                    {% endif %}
+                </td>
+                <td>{{ s.quantity|floatformat:2 }} т.</td>
+                <td class="text-right" style="color: #2f855a; font-weight: bold;">${{ s.total_price|floatformat:2 }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" style="text-align: center; color: #a0aec0; padding: 15px;">Продажи продукции отсутствуют в базе данных.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+</body>
+</html>

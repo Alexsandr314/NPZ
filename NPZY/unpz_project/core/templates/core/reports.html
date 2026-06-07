@@ -1,0 +1,130 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Финансовая отчетность — УНПЗ{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-2">
+    
+    <div class="p-4 bg-dark text-white rounded shadow-sm mb-4 d-flex justify-content-between align-items-center">
+        <div>
+            <h2 class="fw-bold mb-1">📑 Аудиторский отчёт бухгалтерии</h2>
+            <p class="mb-0 text-white-50">Сводный баланс расходов на закупку сырья и доходов с продаж готовой продукции</p>
+        </div>
+        <div class="text-end d-flex align-items-center gap-4">
+            <a href="{% url 'export_pdf_report' %}" class="btn btn-warning btn-lg fw-bold text-dark shadow-sm px-4">
+                📥 Сохранить PDF
+            </a>
+            <div>
+                <span class="text-white-50 small d-block">ТЕКУЩИЙ БАЛАНС ПРЕДПРИЯТИЯ:</span>
+                <span class="fs-2 fw-bold text-warning">${{ finance.balance|floatformat:2 }} <small class="fs-6 text-white">USD</small></span>
+            </div>
+        </div>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-danger alert-dismissible fade show shadow-sm fw-bold mb-4" role="alert">
+        ⚠️ {{ error }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    <div class="row mb-4">
+        <div class="col-md-6 mb-3 mb-md-0">
+            <div class="card p-3 bg-white shadow-sm border-0 border-start border-danger border-4">
+                <span class="text-muted small fw-bold">📉 ВСЕГО ИНВЕСТИРОВАНО В СЫРЬЕ (РАСХОДЫ):</span>
+                <h3 class="text-danger fw-bold mt-1">${{ total_spent_oil|floatformat:2 }}</h3>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card p-3 bg-white shadow-sm border-0 border-start border-success border-4">
+                <span class="text-muted small fw-bold">📈 ВСЕГО ВЫРУЧЕНО С ПРОДАЖ (ДОХОДЫ):</span>
+                <h3 class="text-success fw-bold mt-1">${{ total_earned_sales|floatformat:2 }}</h3>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-xl-7 mb-4">
+            <div class="card shadow-sm border-0 bg-white h-100">
+                <div class="card-header bg-success text-white py-3">
+                    <h5 class="mb-0 fw-bold">📈 Журнал коммерческих продаж (Сбыт продукции)</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-3">Товар</th>
+                                    <th>Тип сделки</th>
+                                    <th>Объем</th>
+                                    <th>Сумма сделки</th>
+                                    <th class="pe-3">Контрагент</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for sale in sales %}
+                                <tr>
+                                    <td class="ps-3"><strong>{{ sale.product.name }}</strong></td>
+                                    <td>
+                                        {% if sale.sale_type == 'wholesale' %}
+                                            <span class="badge bg-primary">Опт / Тендер</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Розница</span>
+                                        {% endif %}
+                                    </td>
+                                    <td><span class="badge bg-light text-dark border">{{ sale.quantity|floatformat:2 }} т.</span></td>
+                                    <td class="text-success fw-bold">${{ sale.total_price|floatformat:2 }}</td>
+                                    <td class="text-muted small pe-3">{{ sale.client }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="5" class="text-center py-4 text-muted">Продаж пока не зафиксировано в базе данных.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-5 mb-4">
+            <div class="card shadow-sm border-0 bg-white h-100">
+                <div class="card-header bg-danger text-white py-3">
+                    <h5 class="mb-0 fw-bold">📉 Журнал закупок нефти (Сырьевой сектор)</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-3">Сорт нефти</th>
+                                    <th>Объем</th>
+                                    <th>Затраты ($)</th>
+                                    <th class="pe-3">Поставщик</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for p in purchases %}
+                                <tr>
+                                    <td class="ps-3"><strong>{{ p.oil.name }}</strong></td>
+                                    <td><span class="badge bg-light text-dark border">{{ p.volume|floatformat:1 }} т.</span></td>
+                                    <td class="text-danger fw-bold">${{ p.total_price|floatformat:2 }}</td>
+                                    <td class="text-muted small pe-3">{{ p.supplier }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="4" class="text-center py-4 text-muted">Закупок нефти ещё не производилось.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-2 mb-4">
+        <a href="{% url 'index' %}" class="btn btn-outline-secondary px-4 fw-bold">
+            ← Вернуться на главную панель
+        </a>
+    </div>
+</div>
+{% endblock %}

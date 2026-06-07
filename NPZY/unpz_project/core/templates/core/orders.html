@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Отдел сбыта и контрактов</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .nav-pills .nav-link.active.btn-gov {
+            background-color: #0d6efd !important;
+        }
+        .nav-pills .nav-link.active.btn-private {
+            background-color: #dc3545 !important;
+        }
+        .card {
+            transition: transform 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-3px);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container py-5">
+    
+    <div class="card bg-dark text-white p-4 mb-4 shadow">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h2 class="mb-1 text-secondary fs-5 fw-bold text-uppercase" style="letter-spacing: 1px;">💼 Отдел сбыта и контрактов</h2>
+                <p class="text-muted small mb-0">Распределение готовой продукции: крупные гос. тендеры и частные заказы АЗС</p>
+            </div>
+            <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                <span class="text-muted small block d-block">БЮДЖЕТ ЗАВОДА:</span>
+                <span class="fs-3 fw-bold text-warning">${{ finance.balance|floatformat:2 }}</span>
+            </div>
+        </div>
+    </div>
+
+    {% if error %}
+        <div class="alert alert-danger alert-dismissible fade show shadow-sm fw-bold mb-4" role="alert">
+            ⚠️ Ошибка: {{ error }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    {% endif %}
+
+    <ul class="nav nav-pills nav-justified mb-4 bg-white p-2 rounded shadow-sm" id="tenderTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active btn-gov py-3 fw-bold fs-5 text-dark border" id="gov-tab" data-bs-toggle="tab" data-bs-target="#gov-content" type="button" role="tab" aria-controls="gov-content" aria-selected="true">
+                🏙️ ОКНО 1: ГОСУДАРСТВЕННЫЕ ТЕНДЕРЫ (Крупный опт)
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link btn-private py-3 fw-bold fs-5 text-dark border ms-2" id="private-tab" data-bs-toggle="tab" data-bs-target="#private-content" type="button" role="tab" aria-controls="private-content" aria-selected="false">
+                ⛽ ОКНО 2: ЧАСТНЫЕ ЗАКАЗЫ (Сети АЗС и базы)
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="tenderTabsContent">
+        
+        <div class="tab-pane fade show active" id="gov-content" role="tabpanel" aria-labelledby="gov-tab">
+            <div class="row">
+                {% for order in gov_tenders %}
+                    <div class="col-md-6 mb-4">
+                        <div class="card shadow-sm border-primary h-100 d-flex flex-column">
+                            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center py-3">
+                                <h5 class="mb-0 fw-bold">🏛️ {{ order.customer_name }}</h5>
+                                <span class="badge bg-white text-primary fw-bold px-3 py-2">Тендер №{{ order.id }}</span>
+                            </div>
+                            <div class="card-body d-flex flex-column justify-content-between p-4">
+                                
+                                <div class="p-3 bg-light rounded mb-3 text-start">
+                                    <div class="text-muted small mb-2 border-bottom pb-1 fw-bold text-uppercase" style="letter-spacing: 0.5px;">📋 Спецификация поставки:</div>
+                                    {% for item in order.items.all %}
+                                        <div class="d-flex justify-content-between my-1 fs-6">
+                                            <span class="text-secondary">🔹 {{ item.product.name }}</span>
+                                            <span class="fw-bold text-dark">{{ item.required_quantity|floatformat:1 }} т.</span>
+                                        </div>
+                                    {% endfor %}
+                                    <div class="d-flex justify-content-between mt-2 pt-2 border-top border-dark border-opacity-10">
+                                        <span class="text-muted fw-bold">Итоговый вес партии:</span>
+                                        <span class="fw-bold text-danger fs-5">{{ order.total_quantity|floatformat:1 }} т.</span>
+                                    </div>
+                                </div>
+
+                                <div class="mt-auto">
+                                    <div class="d-flex justify-content-between my-2 border-bottom pb-2">
+                                        <span class="text-muted">Бюджет контракта:</span>
+                                        <span class="fw-bold text-success fs-4">${{ order.reward_price|floatformat:2 }}</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between mb-4 text-danger small fw-bold">
+                                        <span>⏱️ Срок выполнения (Deadline):</span>
+                                        <span>{{ order.deadline|date:"d.m.Y H:i" }}</span>
+                                    </div>
+                                    <a href="{% url 'fulfill_order' order.id %}" class="btn btn-primary w-100 py-2.5 fw-bold text-uppercase shadow-sm">Заключить гос. контракт</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% empty %}
+                    <div class="col-12 text-center py-5">
+                        <div class="p-5 bg-white rounded shadow-sm">
+                            <span class="fs-1 block mb-3">🏢</span>
+                            <p class="text-muted fs-5 mb-0">На данный момент нет открытых государственных тендеров крупного опта.</p>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="private-content" role="tabpanel" aria-labelledby="private-tab">
+            <div class="row">
+                {% for order in private_orders %}
+                    <div class="col-md-6 mb-4">
+                        <div class="card shadow-sm border-danger h-100 d-flex flex-column">
+                            <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center py-3">
+                                <h5 class="mb-0 fw-bold">⛽ {{ order.customer_name }}</h5>
+                                <span class="badge bg-white text-danger fw-bold px-3 py-2">Заявка №{{ order.id }}</span>
+                            </div>
+                            <div class="card-body d-flex flex-column justify-content-between p-4">
+                                
+                                <div class="p-3 bg-light rounded mb-3 text-start">
+                                    <div class="text-muted small mb-2 border-bottom pb-1 fw-bold text-uppercase" style="letter-spacing: 0.5px;">📋 Позиции к отгрузке:</div>
+                                    {% for item in order.items.all %}
+                                        <div class="d-flex justify-content-between my-1 fs-6">
+                                            <span class="text-secondary">🔹 {{ item.product.name }}</span>
+                                            <span class="fw-bold text-dark">{{ item.required_quantity|floatformat:1 }} т.</span>
+                                        </div>
+                                    {% endfor %}
+                                    <div class="d-flex justify-content-between mt-2 pt-2 border-top border-dark border-opacity-10">
+                                        <span class="text-muted fw-bold">Суммарный объем отгрузки:</span>
+                                        <span class="fw-bold text-danger fs-5">{{ order.total_quantity|floatformat:1 }} т.</span>
+                                    </div>
+                                </div>
+
+                                <div class="mt-auto">
+                                    <div class="d-flex justify-content-between my-2 border-bottom pb-2">
+                                        <span class="text-muted">Выручка со сделки:</span>
+                                        <span class="fw-bold text-success fs-4">${{ order.reward_price|floatformat:2 }}</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between mb-4 text-danger small fw-bold">
+                                        <span>⏱️ Время на поставку:</span>
+                                        <span>{{ order.deadline|date:"d.m.Y H:i" }}</span>
+                                    </div>
+                                    <a href="{% url 'fulfill_order' order.id %}" class="btn btn-danger w-100 py-2.5 fw-bold text-uppercase shadow-sm">Отгрузить топливо АЗС</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% empty %}
+                    <div class="col-12 text-center py-5">
+                        <div class="p-5 bg-white rounded shadow-sm">
+                            <span class="fs-1 block mb-3">⛽</span>
+                            <p class="text-muted fs-5 mb-0">Входящих коммерческих заявок от частных сетей АЗС пока нет.</p>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+
+    </div>
+
+    <div class="mt-4 text-start">
+        <a href="/" class="btn btn-outline-secondary px-4 py-2 fw-bold shadow-sm">← Вернуться на пульт управления</a>
+    </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

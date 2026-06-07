@@ -1,0 +1,169 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Панель управления — УНПЗ{% endblock %}
+
+{% block content %}
+{% if user.is_authenticated %}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="fw-bold">🚀 Панель управления УНПЗ</h1>
+            <p class="text-muted">Система мониторинга производства и финансов</p>
+        </div>
+        <div class="text-end">
+            <p class="mb-0 text-muted small">Вы вошли как:</p>
+            <span class="badge bg-dark fs-6">{{ user.username }} ({{ user.employee.get_role_display|default:"Администратор" }})</span>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-primary text-white py-3">
+                    <h5 class="mb-0">🛢️ Склады сырой нефти (Raw Materials)</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Сорт нефти</th>
+                                <th>Объем (т)</th>
+                                <th style="width: 40%;">Заполнение</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for stock in stocks %}
+                            <tr>
+                                <td><strong>{{ stock.oil_material.name }}</strong></td>
+                                <td>{{ stock.current_volume|floatformat:1 }} / {{ stock.capacity }}</td>
+                                <td>
+                                    {% widthratio stock.current_volume stock.capacity 100 as pct %}
+                                    <div class="d-flex align-items-center">
+                                        <div class="progress flex-grow-1" style="height: 12px;">
+                                            <div class="progress-bar {% if pct|add:0 > 85 %}bg-danger{% else %}bg-info{% endif %}"
+                                                 role="progressbar" style="width: {{ pct }}%"></div>
+                                        </div>
+                                        <span class="ms-2 small fw-bold text-muted">{{ pct }}%</span>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="3" class="text-center py-4">Нет закупленного сырья.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-success text-white py-3">
+                    <h5 class="mb-0">📦 Склад готовой продукции (Output)</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Продукт</th>
+                                <th>В наличии (т)</th>
+                                <th>Розница / Опт</th>
+                                <th>Себестоимость</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p_stock in product_stocks %}
+                            <tr>
+                                <td><strong>{{ p_stock.product.name }}</strong></td>
+                                <td><span class="badge bg-light text-dark border fs-6">{{ p_stock.quantity|floatformat:2 }} т.</span></td>
+                                <td>
+                                    <span class="text-success">${{ p_stock.product.price_retail|floatformat:2 }}</span> /
+                                    <span class="text-primary">${{ p_stock.product.price_wholesale|floatformat:2 }}</span>
+                                    <small class="text-muted">USD</small>
+                                </td>
+                                <td>
+                                    <span class="text-danger fw-bold">${{ p_stock.product.production_cost|floatformat:2 }}</span>
+                                    <small class="text-muted">USD/т</small>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="4" class="text-center py-4 text-muted">Продукция еще не произведена.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0 bg-dark text-white mb-4">
+                <div class="card-body p-4">
+                    <h6 class="text-white-50">Бюджет предприятия:</h6>
+                    <h2 class="display-6 fw-bold mb-0 text-warning">{{ finance.balance|floatformat:2 }} <small class="fs-6">USD</small></h2>
+                    <hr class="border-secondary">
+                    <p class="mb-0 small"><span class="text-success">↑</span> Общий доход: ${{ finance.income|floatformat:2 }}</p>
+                    <p class="mb-0 small"><span class="text-danger">↓</span> Общий расход: ${{ finance.expenses|floatformat:2 }}</p>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-body">
+                    <h5 class="mb-3 fw-bold">Управление заводом</h5>
+                    <div class="d-grid gap-2">
+
+                        {% if employee.role == 'purchaser' or employee.role == 'admin' or request.user.is_superuser %}
+                        <a href="{% url 'purchase_oil' %}" class="btn btn-outline-primary text-start py-2 fw-bold">
+                            🛒 Закупка нефти
+                        </a>
+                        {% endif %}
+
+                        {% if employee.role == 'technologist' or employee.role == 'admin' or request.user.is_superuser %}
+                        <a href="{% url 'produce_oil' %}" class="btn btn-outline-warning text-start text-dark py-2 fw-bold">
+                            ⚙️ Производство
+                        </a>
+                        {% endif %}
+
+                        {% if employee.role == 'sales' or employee.role == 'admin' or request.user.is_superuser %}
+                        <a href="{% url 'order_list' %}" class="btn btn-primary text-start py-2 fw-bold text-white shadow-sm" style="background: linear-gradient(45deg, #0d6efd, #6610f2); border: none;">
+                            🏢 Биржа тендеров (Опт)
+                        </a>
+
+                        <a href="{% url 'sell_product' %}" class="btn btn-outline-success text-start py-2 fw-bold">
+                            💰 Продажа товара (Розница)
+                        </a>
+                        {% endif %}
+
+                        {% if employee.role == 'accountant' or employee.role == 'admin' or request.user.is_superuser %}
+                        <a href="{% url 'accountant_reports' %}" class="btn btn-warning text-start text-dark py-2 fw-bold">
+                            📑 Финансовые отчёты
+                        </a>
+
+                        <a href="{% url 'pay_salaries' %}" class="btn btn-outline-dark text-start py-2 fw-bold">
+                            💸 Выдать зарплату
+                        </a>
+                        {% endif %}
+
+                        {% if employee.role == 'admin' or request.user.is_staff or request.user.is_superuser %}
+                        <hr class="my-2">
+                        <a href="/admin/" class="btn btn-light border text-start py-2">
+                            🛠️ Админ-панель
+                        </a>
+                        {% endif %}
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+{% else %}
+    <div class="row justify-content-center mt-5">
+        <div class="col-md-6 text-center">
+            <div class="p-5 bg-white shadow rounded">
+                <h1 class="display-1">🔒</h1>
+                <h3 class="mt-3">Доступ ограничен</h3>
+                <p class="text-muted">Для работы с системой управления НПЗ необходимо авторизоваться под своей учетной записью.</p>
+                <a href="{% url 'login' %}" class="btn btn-primary btn-lg px-5 mt-3">Войти в систему</a>
+            </div>
+        </div>
+    </div>
+{% endif %}
+{% endblock %}

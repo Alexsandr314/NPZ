@@ -1,0 +1,80 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="container py-5 d-flex justify-content-center">
+    <div class="card shadow-lg p-5" style="width: 210mm; min-height: 200px; border-top: 10px solid #198754;">
+        <div class="d-flex justify-content-between align-items-start mb-4">
+            <div>
+                <h1 class="fw-bold text-success mb-0">УНПЗ</h1>
+                <p class="text-muted">Уральский Нефтеперерабатывающий Завод<br>Сектор: Сбыт и Логистика</p>
+            </div>
+            <div class="text-end">
+                <h3 class="mb-0">ТОВАРНЫЙ ЧЕК</h3>
+                <p class="text-muted small">№ {{ sale.id }}-{{ sale.date|date:"Y" }}</p>
+            </div>
+        </div>
+
+        <hr>
+
+        <div class="row mb-4">
+            <div class="col-6">
+                <p class="mb-1 text-muted small text-uppercase">Покупатель:</p>
+                <h5 class="fw-bold">{{ sale.client }}</h5>
+            </div>
+            <div class="col-6 text-end">
+                <p class="mb-1 text-muted small text-uppercase">Дата сделки:</p>
+                <h5>{{ sale.date|date:"d.m.Y H:i" }}</h5>
+            </div>
+        </div>
+
+        <table class="table table-bordered mb-4">
+            <thead class="table-light text-uppercase small">
+                <tr>
+                    <th>Наименование продукции</th>
+                    <th class="text-center">Кол-во (т)</th>
+                    <th class="text-end">Цена за ед.</th>
+                    <th class="text-end">Итого</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>{{ sale.product.name }}</td>
+                    <td class="text-center">{{ sale.quantity }}</td>
+                    <td class="text-end">${{ sale.product.price_wholesale }}</td>
+                    <td class="text-end fw-bold">${{ sale.total_price|floatformat:2 }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="row justify-content-end">
+            <div class="col-5">
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Сумма без НДС:</span>
+                    <span>${{ sale.total_price|floatformat:2 }}</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Налог (НДС 12%):</span>
+                    <span>- ${{ sale.total_price|floatformat:2 }} * 0.12 (вкл)</span>
+                </div>
+                <hr>
+                <div class="d-flex justify-content-between">
+                    <span class="fw-bold">К ЗАЧИСЛЕНИЮ:</span>
+                    <h4 class="fw-bold text-success">${{ sale.total_price|floatformat:2 }}</h4>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-5 pt-5 border-top d-print-none text-center">
+            <button onclick="window.print()" class="btn btn-dark px-4 me-2">🖨️ Печать / PDF</button>
+            <a href="{% url 'index' %}" class="btn btn-outline-secondary px-4">На главную</a>
+        </div>
+    </div>
+</div>
+
+<style>
+    @media print {
+        .navbar, .btn, .d-print-none { display: none !important; }
+        .card { border: none !important; shadow: none !important; }
+    }
+</style>
+{% endblock %}

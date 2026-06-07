@@ -1,0 +1,127 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Производство — УНПЗ{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card shadow border-0 bg-dark text-white">
+        <div class="card-header border-secondary py-3">
+            <h3 class="mb-0">⚙️ Управление производством (НПЗ)</h3>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+
+                <input type="hidden" name="tech_id" id="hidden_tech_id">
+
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <label class="form-label text-secondary small uppercase">1. Сырье со склада</label>
+                        <select id="oilSelect" name="oil_id" class="form-select bg-secondary text-white border-0" onchange="updateTechList()" required>
+                            <option value="" disabled selected>-- Выберите нефть --</option>
+                            {% for stock in stocks %}
+                                <option value="{{ stock.oil_material.id }}" data-type="{{ stock.oil_material.oil_type }}">
+                                    {{ stock.oil_material.name }} ({{ stock.current_volume|floatformat:1 }} т)
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label text-secondary small uppercase">2. Режим переработки</label>
+                        <select id="techSelect" class="form-select bg-secondary text-white border-0" onchange="applyTechData()" disabled required>
+                            <option value="" disabled selected>-- Сначала выберите нефть --</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label text-secondary small uppercase">3. Объем на переработку (т)</label>
+                        <input type="number" name="amount" step="0.01" class="form-control bg-secondary text-white border-0" placeholder="0.00" required>
+                    </div>
+                </div>
+
+                <div class="mb-2 text-secondary small">ПРОГНОЗ ВЫХОДА ПРОДУКЦИИ:</div>
+                <div id="yieldDisplay" class="row text-center bg-black bg-opacity-25 rounded p-4 mx-1 mb-4 min-vh-20">
+                    <p class="text-secondary w-100">Выберите параметры для расчета выхода фракций...</p>
+                </div>
+
+                <button type="submit" class="btn btn-warning w-100 py-3 fw-bold shadow">
+                    <i class="fas fa-play me-2"></i> ЗАПУСТИТЬ ЦИКЛ ПЕРЕРАБОТКИ
+                </button>
+                <a href="{% url 'index' %}" class="btn btn-link text-white-50 w-100 mt-2 text-decoration-none">← Отмена</a>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Загружаем конфиг из Django (из views.py)
+    const techConfig = {{ yield_map_json|safe }};
+
+    function updateTechList() {
+        const oilSelect = document.getElementById('oilSelect');
+        const techSelect = document.getElementById('techSelect');
+        const yieldDisplay = document.getElementById('yieldDisplay');
+
+        const selectedOption = oilSelect.options[oilSelect.selectedIndex];
+        let oilType = selectedOption.dataset.type.toLowerCase();
+
+        // Умное сопоставление типов (на случай если в базе написано 'Легкая' или 'Light')
+        let techKey = 'medium'; // по умолчанию
+        if (oilType.includes('light') || oilType.includes('легкая')) techKey = 'light';
+        else if (oilType.includes('heavy') || oilType.includes('тяжелая')) techKey = 'heavy';
+        else if (oilType.includes('medium') || oilType.includes('средняя')) techKey = 'medium';
+
+        // Сохраняем актуальный ключ в сам элемент для функции applyTechData
+        techSelect.dataset.currentTechKey = techKey;
+
+        // Сброс списка режимов
+        techSelect.innerHTML = '<option value="" disabled selected>-- Выберите режим --</option>';
+        techSelect.disabled = true;
+        yieldDisplay.innerHTML = '<p class="text-secondary w-100">Ожидание выбора режима...</p>';
+
+        if (techConfig[techKey]) {
+            const techs = techConfig[techKey];
+            for (const id in techs) {
+                const option = document.createElement('option');
+                option.value = id;
+                option.textContent = techs[id].name;
+                techSelect.appendChild(option);
+            }
+            techSelect.disabled = false;
+        } else {
+            console.error("Ключ '" + techKey + "' не найден в конфиге.");
+            alert("Ошибка конфигурации: Режимы для типа '" + techKey + "' не настроены.");
+        }
+    }
+
+    function applyTechData() {
+        const techSelect = document.getElementById('techSelect');
+        const hiddenInput = document.getElementById('hidden_tech_id');
+        const yieldDisplay = document.getElementById('yieldDisplay');
+
+        const techKey = techSelect.dataset.currentTechKey;
+        const techId = techSelect.value;
+
+        hiddenInput.value = techId;
+
+        // Отрисовка карточек с процентами
+        const yields = techConfig[techKey][techId].yields;
+        let html = '<div class="row w-100 d-flex justify-content-center">';
+        for (const [name, percent] of Object.entries(yields)) {
+            let colorClass = "text-warning";
+            if (name === 'Потери') continue;
+            if (name.includes('Бензин')) colorClass = "text-info";
+            if (name.includes('Дизель')) colorClass = "text-success";
+
+            html += `
+                <div class="col-md-2 col-6 mb-3">
+                    <div class="small text-secondary text-uppercase" style="font-size: 0.65rem; letter-spacing: 1px;">${name}</div>
+                    <div class="h4 fw-bold ${colorClass}">${percent}%</div>
+                </div>`;
+        }
+        html += '</div>';
+        yieldDisplay.innerHTML = html;
+    }
+</script>
+{% endblock %}

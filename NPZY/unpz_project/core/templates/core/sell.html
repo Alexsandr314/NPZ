@@ -1,0 +1,100 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Продажа продукции — УНПЗ{% endblock %}
+
+{% block content %}
+<div class="card shadow border-0 bg-dark text-white">
+    <div class="card-header border-secondary py-3">
+        <h4 class="mb-0">💰 Реализация готовой продукции</h4>
+    </div>
+    <div class="card-body">
+        <form method="post" id="sellForm">
+            {% csrf_token %}
+
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Выберите товар на складе</label>
+                    <select name="ps_id" id="productSelect" class="form-select bg-secondary text-white border-0" required>
+                        <option value="" disabled selected>-- Доступные товары --</option>
+                        {% for ps in p_stocks %}
+                            <option value="{{ ps.id }}"
+                                    data-retail="{{ ps.product.price_retail }}"
+                                    data-wholesale="{{ ps.product.price_wholesale }}"
+                                    data-qty="{{ ps.quantity }}">
+                                {{ ps.product.name }} (Доступно: {{ ps.quantity|floatformat:2 }} т)
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Количество для продажи (т)</label>
+                    <input type="number" name="quantity" id="sellQuantity" step="0.01" class="form-control bg-secondary text-white border-0" placeholder="0.00" required>
+                </div>
+            </div>
+
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Тип контракта</label>
+                    <div class="d-flex gap-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="mode" id="retail" value="retail" checked>
+                            <label class="form-check-label" for="retail">Розница (Дороже)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="mode" id="wholesale" value="wholesale">
+                            <label class="form-check-label" for="wholesale">Опт (Дешевле)</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Покупатель / Сеть АЗС</label>
+                    <input type="text" name="client" class="form-control bg-secondary text-white border-0" value="Oil-Express Corp.">
+                </div>
+            </div>
+
+            <div class="alert alert-success bg-success bg-opacity-10 border-success border-opacity-25 text-white mb-4">
+                <div class="row text-center">
+                    <div class="col-6 border-end border-success border-opacity-25">
+                        <small class="text-secondary d-block">Цена за тонну:</small>
+                        <span class="h4" id="currentPrice">0.00</span> <small>USD</small>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-secondary d-block">Итого к получению:</small>
+                        <span class="h4 text-warning" id="totalRevenue">0.00</span> <small class="text-warning">USD</small>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-success w-100 py-3 fw-bold shadow">ПОДТВЕРДИТЬ СДЕЛКУ И ВЫПИСАТЬ СЧЕТ</button>
+            <a href="{% url 'index' %}" class="btn btn-link text-white-50 w-100 mt-2 text-decoration-none">← Отмена</a>
+        </form>
+    </div>
+</div>
+
+<script>
+    const productSelect = document.getElementById('productSelect');
+    const sellQuantity = document.getElementById('sellQuantity');
+    const retailRadio = document.getElementById('retail');
+    const wholesaleRadio = document.getElementById('wholesale');
+    const currentPriceSpan = document.getElementById('currentPrice');
+    const totalRevenueSpan = document.getElementById('totalRevenue');
+
+    function calculate() {
+        const selected = productSelect.options[productSelect.selectedIndex];
+        if (!selected || selected.disabled) return;
+
+        const price = retailRadio.checked ? selected.dataset.retail : selected.dataset.wholesale;
+        const qty = parseFloat(sellQuantity.value) || 0;
+
+        currentPriceSpan.innerText = parseFloat(price).toFixed(2);
+        totalRevenueSpan.innerText = (price * qty).toFixed(2);
+    }
+
+    productSelect.addEventListener('change', calculate);
+    sellQuantity.addEventListener('input', calculate);
+    retailRadio.addEventListener('change', calculate);
+    wholesaleRadio.addEventListener('change', calculate);
+</script>
+{% endblock %}

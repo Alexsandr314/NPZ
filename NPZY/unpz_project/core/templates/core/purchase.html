@@ -1,0 +1,52 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Закупка нефти — УНПЗ{% endblock %}
+
+{% block content %}
+<div class="card shadow border-0 bg-dark text-white">
+    <div class="card-header border-secondary py-3">
+        <h4 class="mb-0">📦 Закупка сырой нефти</h4>
+    </div>
+    <div class="card-body">
+        {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Выберите сорт нефти</label>
+                    <select name="oil_id" class="form-select bg-secondary text-white border-0" required>
+                        <option value="" disabled selected>-- Доступные сорта --</option>
+                        {% for material in materials %}
+                            <option value="{{ material.id }}">
+                                {{ material.name }} ({{ material.price_per_ton }} USD / т)
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Объем закупки (тонн)</label>
+                    <input type="number" name="volume" class="form-control bg-secondary text-white border-0" step="0.01" required placeholder="Введите количество...">
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label fw-bold">Поставщик</label>
+                <input type="text" name="supplier" class="form-control bg-secondary text-white border-0" value="Global Oil Trading">
+            </div>
+
+            <div class="alert alert-info border-0 shadow-sm">
+                💰 Текущий баланс компании: <strong>{{ finance.balance|floatformat:2 }} USD</strong>
+            </div>
+
+            <button type="submit" class="btn btn-warning w-100 py-3 fw-bold shadow">ОПЛАТИТЬ И ПРИНЯТЬ НА СКЛАД</button>
+            <a href="{% url 'index' %}" class="btn btn-link text-white-50 w-100 mt-2 text-decoration-none">← Вернуться на панель управления</a>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Мини-скрипт для удобства: можно добавить расчет итоговой суммы прямо в форме,
+    // но пока просто оставляем чистый HTML по твоему запросу.
+</script>
+{% endblock %}
